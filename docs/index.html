@@ -1,113 +1,167 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <style>
-        html, body {
-            width: 100%;
-            height: 100%;
-            margin: 0px;
-            border: 0;
-            overflow: hidden; /*  Disable scrollbars */
-            display: block;  /* No floating content on sides */
-        }
-        </style>
-    </head>
-    <body>
-        
-        <button id="start">Start</button>
-        <button id="stop">Stop</button>
-        <br>
-        <h1 id = "frequency_label">Fundamental Resonant Frequency: 440</h1>
-       <br>
-        <b>1</b><input type = "range" min = '1' max = '10000' id = 'frequency_slider' value = 440></input> <b>10000</b>
-        <br>
-        <h1 id = "lowpass_cutoff_label">Lowpass Cutoff: 5500</h1>
-        <br>
-        <b>0</b><input type = "range" min = '0' max = '22050' id = 'lowpass_slider' value = 5500></input> <b>22050</b>
-    </body>
-</html>
+<head>
+    <style>
+    html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+        border: 0;
+        overflow: hidden; /*  Disable scrollbars */
+        display: block;  /* No floating content on sides */
+    }
+    </style>
+    
+</head>
+<body onload = "init()">
+    <button id="start">Start</button>
+    <button id="stop">Stop</button>
+    <canvas id = "canvas" width = "1200" height = "600"></canvas>
 
+    <!-- <h1 id = "frequency_label">Fundamental Resonant Frequency: 440</h1>
+    <br>
+    <b>1</b><input type = "range" min = '1' max = '10000' id = 'frequency_slider' value = 440></input> <b>10000</b>
+    <br>
+    <h1 id = "lowpass_cutoff_label">Lowpass Cutoff: 5500</h1>
+    <br>
+    <b>0</b><input type = "range" min = '0' max = '22050' id = 'lowpass_slider' value = 5500></input> <b>22050</b> -->
+
+</body>
+
+<script src="https://code.createjs.com/1.0.0/createjs.min.js"></script>
+<script src = "Nodes.js"></script>
 <script>
 
-    const lowpass_slider = document.getElementById('lowpass_slider');
-    const frequency_slider = document.getElementById('frequency_slider');
-    const startButton = document.getElementById("start");
-    const stopButton = document.getElementById("stop");
+    // // Audio
 
-    // Audio init
+    // // const lowpass_slider = document.getElementById('lowpass_slider');
+    // // const frequency_slider = document.getElementById('frequency_slider');
+    // const startButton = document.getElementById("start");
+    // const stopButton = document.getElementById("stop");
     
-    var audioCtx = new AudioContext();
-
-    var freq = frequency_slider.value;
-    var pluckLength = 1 / freq;
-    var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: audioCtx.sampleRate * pluckLength, sampleRate: audioCtx.sampleRate});
-    var buffer = pluckBuffer.getChannelData(0);
-    for(var i = 0; i < buffer.length; i++) {
-        buffer[i] = Math.random() * 2 - 1; // generate white noise sample
-        // buffer[i] = 1;
-    }
-
-    var delay = new DelayNode(audioCtx, {delayTime: pluckLength});
-    var gain = audioCtx.createGain();
-    gain.gain.value = 2 * 0.8; // channel merger halves the amplitude from each input
-
-    var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: lowpass_slider.value, Q: 0});
-    var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
-    var split = new ChannelSplitterNode(audioCtx, {numberOfOutputs: 2});
-
-    merge.connect(delay);
-    delay.connect(gain);
-    gain.connect(filter);
-    filter.connect(merge);
-    merge.connect(split);
-    split.connect(audioCtx.destination);
-
-    lowpass_slider.onchange = function() {
-        document.getElementById("lowpass_cutoff_label").innerHTML = "Lowpass Cutoff: " + lowpass_slider.value;
-        filter.frequency.setValueAtTime(lowpass_slider.value, audioCtx.currentTime);
-    }
-        
-    frequency_slider.onchange = function() {
-        document.getElementById("frequency_label").innerHTML = "Fundamental Resonant Frequency: " + frequency_slider.value;
-    }
-   
-    start.onclick = function() {
-
-        var freq = frequency_slider.value;
-        var pluckLength = 1 / freq;
-        var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: audioCtx.sampleRate * pluckLength, sampleRate: audioCtx.sampleRate});
-        buffer = pluckBuffer.getChannelData(0);
-        for(var i = 0; i < buffer.length; i++) {
-            buffer[i] = Math.random() * 2 - 1; // generate white noise sample
-            // buffer[i] = 1;
-        }
-
-        delay.delayTime.setValueAtTime(pluckLength, audioCtx.currentTime);
-        audioCtx.resume();
-        var pluckSource = new AudioBufferSourceNode(audioCtx, {buffer: pluckBuffer}); // creates a source to play the pluck buffer from 
-        pluckSource.connect(merge);
-        pluckSource.start();
-
-        setTimeout(() => {
-            pluckSource.stop(); 
-            pluckSource.disconnect(merge);
-            },
-            1000);
-    }
-
-
-    // function stop() {
-    //     pluckSource.disconnect();
-    //     merge.disconnect();
-    //     delay.disconnect();
-    //     gain.disconnect();
-    //     filter.disconnect();
-    //     split.disconnect();
-        //pluckSource.stop();  
+    // var audioCtx = new AudioContext();
+    // // var freq = frequency_slider.value;
+    // var freq = 5500;
+    // var pluckLength = 1 / freq;
+    // var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: audioCtx.sampleRate * pluckLength, sampleRate: audioCtx.sampleRate});
+    // var buffer = pluckBuffer.getChannelData(0);
+    // for(var i = 0; i < buffer.length; i++) {
+    //     buffer[i] = Math.random() * 2 - 1; // generate white noise sample
+    //     // buffer[i] = 1;
     // }
 
-    // stopButton.onclick = stop();
+    // var delay = new DelayNode(audioCtx, {delayTime: pluckLength});
+    // var gain = audioCtx.createGain();
+    // gain.gain.value = 2 * 0.8; // channel merger halves the amplitude from each input
+
+    // // var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: lowpass_slider.value, Q: 0});
+    // var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: 5500, Q: 0});
+    // var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
+    // var split = new ChannelSplitterNode(audioCtx, {numberOfOutputs: 2});
+
+    // merge.connect(delay);
+    // delay.connect(gain);
+    // gain.connect(filter);
+    // filter.connect(merge);
+    // merge.connect(split);
+    // split.connect(audioCtx.destination);
+
+    // // lowpass_slider.onchange = function() {
+    // //     document.getElementById("lowpass_cutoff_label").innerHTML = "Lowpass Cutoff: " + lowpass_slider.value;
+    // //     filter.frequency.setValueAtTime(lowpass_slider.value, audioCtx.currentTime);
+    // // }
+        
+    // // frequency_slider.onchange = function() {
+    // //     document.getElementById("frequency_label").innerHTML = "Fundamental Resonant Frequency: " + frequency_slider.value;
+    // // }
+    
+    // startButton.onclick = function() {
+
+    //     // var freq = frequency_slider.value;
+    //     var freq = 5500;
+    //     var pluckLength = 1 / freq;
+    //     var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: audioCtx.sampleRate * pluckLength, sampleRate: audioCtx.sampleRate});
+    //     buffer = pluckBuffer.getChannelData(0);
+    //     for(var i = 0; i < buffer.length; i++) {
+    //         buffer[i] = Math.random() * 2 - 1; // generate white noise sample
+    //         // buffer[i] = 1;
+    //     }
+
+    //     delay.delayTime.setValueAtTime(pluckLength, audioCtx.currentTime);
+    //     audioCtx.resume();
+    //     var pluckSource = new AudioBufferSourceNode(audioCtx, {buffer: pluckBuffer}); // creates a source to play the pluck buffer from 
+    //     pluckSource.connect(merge);
+    //     pluckSource.start();
+
+    //     setTimeout(() => {
+    //         pluckSource.stop(); 
+    //         },
+    //         1000);
+
+    //         function stop() {
+    //             pluckSource.disconnect();
+    //             merge.disconnect();
+    //             delay.disconnect();
+    //             gain.disconnect();
+    //             filter.disconnect();
+    //             split.disconnect();
+    //             pluckSource.stop();  
+    //         }
+
+    //         stopButton.onclick = stop();
+    // }
+
+    // canvas 
+
+    // canvas.width  = window.innerWidth;
+    // canvas.height = window.innerHeight;
+    var stage, holder;
+    function init() {
+        var stage = new createjs.Stage("canvas");
+
+        var input = stage.addChild(new InputNode(Math.round(.01 * 1000 * 100) / 100.0 + " ms", "white noise"));
+        input.x = 20;
+        input.y = 20;
+
+        var mer = stage.addChild(new LabelNode("Merge"));
+        mer.x = input.x + 400;
+        mer.y = 20;
+
+        var split = stage.addChild(new LabelNode("Split"));
+        split.x = mer.x + 400;
+        split.y = 20;
+
+        var output = stage.addChild(new LabelNode("Output"));
+        output.x = split.x + 400;
+        output.y = 20;
+
+        var del = stage.addChild(new DelayNode(Math.round(.01 * 1000 * 100) / 100.0 + " ms"));
+        del.x = split.x;
+        del.y = split.y + 100;
+
+        var fil = stage.addChild(new FilterNode("Lowpass Filter", "1000"));
+        fil.x = mer.x;
+        fil.y = mer.y + 100;
+
+        
+
+        stage.update();
+        createjs.Ticker.addEventListener("tick", handleTick);
+        function handleTick(event) {
+            stage.update()
+        }
+    }
+
     
     
-    
+    // window.onresize = function() {
+    //     canvas.width  = window.innerWidth;
+    //     canvas.height = window.innerHeight;
+    // }
+
+    // var canvas = document.getElementById("canvas");
+    // var ctx = canvas.getContext("2d");
+
+
 </script>
+</html>
