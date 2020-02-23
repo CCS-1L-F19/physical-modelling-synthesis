@@ -2,9 +2,6 @@
 
 A first-principles implementation of physical modelling synthesis using Web Audio API with an interactive Audio graph.
 
-## What is physical modelling synthesis?
-Physical modelling synthesis is a method of generating re
-The Karplus-Strong algorithm is
 
 ## Instructions
 The master branch version of the webapp is automatically published to this repo's Github pages: 
