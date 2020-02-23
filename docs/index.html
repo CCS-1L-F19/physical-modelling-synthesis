@@ -94,7 +94,7 @@
     // var currNodeType;
     var dragged = false;
     
-    function createNode(options, audioNode, modalType) {
+    function createNode(options) {
 
         var node = nodeProto.clone({
             width: options.width,
@@ -102,7 +102,8 @@
             y: options.y
         });
 
-        node.next = [];
+        node.startingLines = [];
+        node.endingLines = [];
         node.audioNode = options.audioNode;
 
         var label = nodeLabelProto.clone({
@@ -120,43 +121,64 @@
             }
             else {
                 currNode = node.id; 
-                if(modalType !== "none") {
-                    currModal = document.getElementById(modalType);
+                if(options.modalType !== "none") {
+                    currModal = document.getElementById(options.modalType);
                     currModal.style.display = "block";
                 }
             }
         }
 
+        function whileDragging() {
+            for(var line of node.startingLines) {
+                updateLineStart(node, line);
+            }
+            for(var line of node.endingLines) {
+                updateLineEnd(node, line);
+            }
+        }
+
         node.bind("click tap", openModal);
-        node.dragAndDrop({ changeZindex: true, move: function(){dragged = true; }});
+        node.dragAndDrop({ changeZindex: true, move: function(){dragged = true; whileDragging();}});
         node.addChild(label);
         node.addChild(subtext);
         canvas.addChild(node);
-        audioNodes[node.id] = audioNode;
+        // audioNodes[node.id] = options.audioNode;
         return node;
     }
 
     function connect(n1, n2) {
-        n1.next.push(n2);
+        
         n1.audioNode.connect(n2.audioNode);
-        // drawLineBetween(n1, n2);
+        var line = drawLineBetween(n1, n2);
+        n1.startingLines.push(line);
+        n2.endingLines.push(line);
     }
 
     function drawLineBetween(n1, n2) {
+        var line = canvas.display.line({
+            start: {x: n1.x, y: n1.y},
+            end: {x: n2.x, y: n2.y},
+        });
+        
+        canvas.addChild(line);
+        line.zIndex = "back";
+        return line;
+    }
 
+    function updateLineStart(node, line) {
+        // console.log(node.x);
+        line.start = {x: node.x, y: node.y};
+        canvas.redraw();
+    }  
+
+    function updateLineEnd(node, line) {
+        line.end = {x: node.x, y: node.y};
+        canvas.redraw();
     }
 
     
 
     // Audio init
-    
-    var audioCtx = new AudioContext();
-
-    var freq = defaults.frequency;
-    var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: audioCtx.sampleRate * defaults.duration, sampleRate: audioCtx.sampleRate});
-    
-    
-    var buffer = pluckBuffer.getChannelData(0);
 
     function generateNoise(buffer, noiseType) {
         for(var i = 0; i < buffer.length; i++) {
@@ -173,38 +195,32 @@
         }
     }
     
-    
+    var audioCtx = new AudioContext();
+
+    var freq = defaults.frequency;
+    var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: audioCtx.sampleRate * defaults.duration, sampleRate: audioCtx.sampleRate});
+    generateNoise(pluckBuffer.getChannelData(0), noiseTypes.WHITE);
     var delay = new DelayNode(audioCtx, {delayTime: defaults.duration});
     var gain = new GainNode(audioCtx, {gain: 2 * defaults.gain});
     var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: defaults.lowpass, Q: 0});
     var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
     var split = new ChannelSplitterNode(audioCtx, {numberOfOutputs: 2});
 
+    var sourceBufferNode = createNode({width: 200, x: 150, y: 30, labeltext: "Source Buffer", subtext: "type: white noise", audioNode: pluckBuffer, modalType: "none"});
+    var mergeNode = createNode({width: 100, x: 500, y: 30, labeltext: "Merge", subtext: "", audioNode: merge, modalType: "none"});
+    var gainNode = createNode({width: 100, x: 650, y: 150, labeltext: "Gain", subtext: "", audioNode: gain, modalType: "none"});
+    var delayNode = createNode({width: 200, x: 500, y: 300, labeltext: "Delay Node", subtext: "Delay = ", audioNode: delay, modalType: "duration_modal"});
+    var filterNode = createNode({width: 200, x: 300, y: 150, labeltext: "Lowpass Filter", subtext: "cutoff: ", audioNode: filter, modalType: "filter_modal"});
+    var destNode = createNode({width: 150, x: 850, y: 30, labeltext: "Destination", subtext: "", audioNode: split, modalType: "none"});
 
-    var sourceBufferNode = createNode({width: 200, x: 150, y: 30, labeltext: "Source Buffer", subtext: "type: white noise"}, pluckBuffer, "none");
-    var mergeNode = createNode({width: 100, x: 350, y: 30, labeltext: "Merge", subtext: ""}, merge, "none");
-    var splitNode = createNode({width: 100, x: 600, y: 30, labeltext: "Split", subtext: ""}, split, "none");
-    var delayNode = createNode({width: 200, x: 500, y: 150, labeltext: "Delay Node", subtext: "Delay = "}, delay, "duration_modal");
-    var filterNode = createNode({width: 200, x: 250, y: 150, labeltext: "Lowpass Filter", subtext: "cutoff: "}, filter, "filter_modal");
-    var gainNode = createNode({width: 100, x: 700, y: 150, labeltext: "Gain", subtext: ""}, gain, "none");
-    var destNode = createNode({width: 150, x: 850, y: 30, labeltext: "Destination", subtext: "", }, audioCtx.destination, "none");
+    connect(mergeNode, gainNode);
+    connect(gainNode, delayNode);
+    connect(delayNode, filterNode);
+    connect(filterNode, mergeNode);
+    connect(mergeNode, destNode);
+    drawLineBetween(sourceBufferNode, mergeNode); // BufferNode not instantiated 
+    canvas.redraw();
 
-    // connect(mergeNode, delayNode);
-    // connect(delayNode, gainNode);
-
-    merge.connect(gain);
-    gain.connect(delay);
-    delay.connect(filter);
-    filter.connect(merge);
-    merge.connect(split);
-    split.connect(audioCtx.destination);
-
-    // merge.connect(split);
-    // split.connect(gain);
-    // split.connect(audioCtx.destination);
-    // gain.connect(delay);
-    // delay.connect(filter);
-    // filter.connect(merge);
 
     const lowpass_slider = document.getElementById('lowpass_slider');
     const duration_slider = document.getElementById('duration_slider');
@@ -233,17 +249,10 @@
     const stopButton = document.getElementById("stop");
     start.onclick = function() {
 
-        var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: audioCtx.sampleRate * defaults.duration, sampleRate: audioCtx.sampleRate});
-        buffer = pluckBuffer.getChannelData(0);
-        for(var i = 0; i < buffer.length; i++) {
-            //switch()
-            buffer[i] = Math.random() * 2 - 1; // generate white noise sample
-            // buffer[i] = 1;
-        }
-
         audioCtx.resume();
         var pluckSource = new AudioBufferSourceNode(audioCtx, {buffer: pluckBuffer}); // creates a source to play the pluck buffer from 
-        pluckSource.connect(merge);
+        pluckSource.connect(merge);        
+        split.connect(audioCtx.destination);
         pluckSource.start();
 
         setTimeout(() => {
