@@ -233,13 +233,14 @@
     }
     var AudioContext = window.AudioContext || window.webkitAudioContext;
     var audioCtx = new AudioContext();
-    // async function audioSetup() {
-    //     console.log(audioCtx);
-    //     await BaseAudioContext.audioWorklet.addModule('karplus-strong-processor.js');
-    // }
+    async function audioSetup() {
+        console.log(audioCtx);
+        await audioCtx.audioWorklet.addModule('karplus-strong-processor.js');
+        // await BaseAudioContext.audioWorklet.addModule('karplus-strong-processor.js');
+    }
 
-    // audioSetup().then(() => {
-        // const karplus = new AudioWorkletNode(audioContext, 'karplus-strong-processor');
+    audioSetup().then(() => {
+        const karplus = new AudioWorkletNode(audioContext, 'karplus-strong-processor');
         var pluckSource;
         var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: defaults.duration, sampleRate: audioCtx.sampleRate});
         generateNoise(pluckBuffer.getChannelData(0), noiseTypes.WHITE);
@@ -265,7 +266,7 @@
         connect(mergeNode, destNode);
         connect(sourceBufferNode, mergeNode);
         canvas.redraw();
-    // });
+    });
     
 
     const lowpass_slider = document.getElementById('lowpass_slider');
