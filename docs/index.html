@@ -233,9 +233,8 @@
     }
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     const audioCtx = new AudioContext();
-    console.log(window.isSecureContext)
+    console.log("is secure: " + window.isSecureContext)
     async function audioSetup() {
-        console.log(audioCtx);
         await audioCtx.audioWorklet.addModule('karplus-strong-processor.js');
         // await BaseAudioContext.audioWorklet.addModule('karplus-strong-processor.js');
     }
@@ -247,7 +246,7 @@
         generateNoise(pluckBuffer.getChannelData(0), noiseTypes.WHITE);
         var delay = new DelayNode(audioCtx, {delayTime: defaults.duration / audioCtx.sampleRate});
         var gain = new GainNode(audioCtx, {gain: 2 * defaults.gain});
-        // var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: defaults.lowpass, Q: 0});
+        var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: defaults.lowpass, Q: 0});
         var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
         var split = new ChannelSplitterNode(audioCtx, {numberOfOutputs: 2});
 
@@ -255,21 +254,52 @@
         var mergeNode = createNode({width: 100, x: 500, y: 50, labeltext: "Merge", subtext: "", audioNode: merge, modalType: "none"});
         var gainNode = createNode({width: 100, x: 650, y: 150, labeltext: "Gain", subtext: "", audioNode: gain, modalType: "none"});
         var delayNode = createNode({width: 200, x: 500, y: 300, labeltext: "Delay Node", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
-        var filterNode = createNode({width: 200, x: 300, y: 150, labeltext: "Lowpass Filter", subtext: "cutoff frequency: " + defaults.lowpass + " hz", audioNode: karplus, modalType: "filter_modal"});
+        // var filterNode = createNode({width: 200, x: 300, y: 150, labeltext: "Lowpass Filter", subtext: "cutoff frequency: " + defaults.lowpass + " hz", audioNode: filter, modalType: "filter_modal"});
+        var averagingNode = createNode({width: 200, x: 300, y: 150, labeltext: "Averaging Node", subtext: "", audioNode: karplus, modalType: "none"});
         var destNode = createNode({width: 150, x: 850, y: 50, labeltext: "Destination", subtext: "", audioNode: split, modalType: "none"});
 
         delayNodes.push(delayNode);
 
         connect(mergeNode, gainNode);
         connect(gainNode, delayNode);
-        connect(delayNode, filterNode);
-        connect(filterNode, mergeNode);
+        connect(delayNode, averagingNode);
+        connect(averagingNode, mergeNode);
+        // connect(delayNode, filterNode);
+        // connect(filterNode, mergeNode);
         connect(mergeNode, destNode);
         connect(sourceBufferNode, mergeNode);
         canvas.redraw();
     
+        const startButton = document.getElementById("start");
+    
+        startButton.onclick = function() {
 
-        const lowpass_slider = document.getElementById('lowpass_slider');
+            audioCtx.resume();
+            pluckSource = new AudioBufferSourceNode(audioCtx, {buffer: pluckBuffer}); // creates a source to play the pluck buffer from 
+            pluckSource.connect(merge);        
+            split.connect(audioCtx.destination);
+            pluckSource.start();
+
+            // setTimeout(() => {
+            //     pluckSource.stop(); 
+            //     },
+            //     1000);
+        }
+
+        // const stopButton = document.getElementById("stop");
+        //  stopButton.onclick = function() {
+        //     console.log("stop");
+        //     pluckSource.disconnect();
+        //     merge.disconnect();
+        //     delay.disconnect();
+        //     gain.disconnect();
+        //     filter.disconnect();
+        //     split.disconnect();
+        //     pluckSource.stop();  
+        // }
+    });
+
+    const lowpass_slider = document.getElementById('lowpass_slider');
         const delay_slider = document.getElementById('delay_slider');
         const source_slider = document.getElementById('source_slider');
         const noise_selector = document.getElementById('noise');
@@ -319,34 +349,5 @@
         function closeModal() {
             currModal.style.display = "none";
         }
-    
-        const startButton = document.getElementById("start");
-    
-        startButton.onclick = function() {
-
-            audioCtx.resume();
-            pluckSource = new AudioBufferSourceNode(audioCtx, {buffer: pluckBuffer}); // creates a source to play the pluck buffer from 
-            pluckSource.connect(merge);        
-            split.connect(audioCtx.destination);
-            pluckSource.start();
-
-            // setTimeout(() => {
-            //     pluckSource.stop(); 
-            //     },
-            //     1000);
-        }
-
-        // const stopButton = document.getElementById("stop");
-        //  stopButton.onclick = function() {
-        //     console.log("stop");
-        //     pluckSource.disconnect();
-        //     merge.disconnect();
-        //     delay.disconnect();
-        //     gain.disconnect();
-        //     filter.disconnect();
-        //     split.disconnect();
-        //     pluckSource.stop();  
-        // }
-    });
 
 </script>
