@@ -98,13 +98,17 @@
     // canvas
 
     var canvasContext = document.getElementById("canvas").getContext('2d');
-    canvasContext.canvas.width = window.innerWidth ;
+    canvasContext.canvas.width = window.innerWidth - 43;
     canvasContext.canvas.height = window.innerHeight * 0.8;
 
     var canvas = oCanvas.create({
         canvas: "#canvas",
-        background: "#ccc"
     });
+
+    window.onresize = () => {
+        canvasContext.canvas.width = window.innerWidth - 43;
+        canvas.redraw();
+    }
 
     var nodeProto = canvas.display.rectangle({
         origin: { x: "center", y: "center" },
@@ -393,8 +397,10 @@
     }
 
     window.onclick = function(event) {
-        if (event.target == currNode.modal) {
-            closeModal(currNode.modal);
+        if(currnode){
+            if (event.target == currNode.modal) {
+                closeModal(currNode.modal);
+            }
         }
     }
 
