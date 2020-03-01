@@ -21,52 +21,57 @@
             <button id="start">Play</button>
             <!--    <button id="stop">Stop</button> -->
         </div>
+        <template id="filter_modal">
+            <div id = "modal" class="modal">
+                <div class="modal-content">
+                  <span class="close" onclick="closeModal(currNode.modal)">&times;</span>
+                  <p>Set the cutoff frequency</p>
+                  <b>0</b><input class = "slider" type = "range" min = '0' max = '22050' id = 'lowpass_slider' value = 5500></input> <b>22050</b>
+                  <p id = "lowpass_label">Lowpass Cutoff: 5500</p>
+                </div>
+            </div> 
+        </template>
+
+        <template id="delay_modal">
+            <div class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeModal(currNode.modal)">&times;</span>
+                    <p>Set duration (samples)</p>
+                    <b>1</b><input class = "slider" type = "range" min = '1' max = '100' id = 'delay_slider' value = 50></input> <b>100</b>
+                    <!-- <input type = "number" class = ""></input> -->
+                    <p class = "sample_label">50 samples</p>
+                </div>
+            </div>
+        </template>
+        <template id="source_modal">
+            <div class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeModal(currNode.modal)">&times;</span>
+    
+                    <label for="noise">Set noise type:</label>
+                    <select id="noise_selector">
+                        <option value="white noise">White Noise</option>
+                        <option value="constant">Constant signal</option>
+                    </select>
+    
+                    <p>Set duration (samples)</p>
+                    <b>1</b><input class = "slider" type = "range" min = '1' max = '100' id = 'source_slider' value = 50></input> <b>100</b>
+                    <p class = "sample_label">50 samples</p>
+                </div>
+            </div>
+        </template>
         
-        <div id="filter_modal" class="modal">
-            <div class="modal-content">
-              <span class="close" onclick="closeModal()">&times;</span>
-              <p>Set the cutoff frequency</p>
-              <b>0</b><input class = "slider" type = "range" min = '0' max = '22050' id = 'lowpass_slider' value = 5500></input> <b>22050</b>
-              <p id = "lowpass_label">Lowpass Cutoff: 5500</p>
+        <template id="drum_modal">
+            <div class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeModal(currNode.modal)">&times;</span>
+    
+                    <p>Set b value (probability that sample will stay positive, otherwise the sample is negated)  </p>
+                    <b>0</b><input class = "slider" type = "range" min = '0' max = '100' id = 'drum_slider' value = 50></input> <b>1</b>
+                    <p class = "drum_label">0.5</p>
+                </div>
             </div>
-        </div> 
-
-        <div id="delay_modal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal()">&times;</span>
-                <p>Set duration (samples)</p>
-                <b>1</b><input class = "slider" type = "range" min = '1' max = '100' id = 'delay_slider' value = 50></input> <b>100</b>
-                <!-- <input type = "number" class = ""></input> -->
-                <p class = "sample_label">50 samples</p>
-            </div>
-        </div>
-
-        <div id="source_modal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal()">&times;</span>
-
-                <label for="noise">Set noise type:</label>
-                <select id="noise">
-                    <option value="white noise">White Noise</option>
-                    <option value="constant">Constant signal</option>
-                </select>
-
-                <p>Set duration (samples)</p>
-                <b>1</b><input class = "slider" type = "range" min = '1' max = '100' id = 'source_slider' value = 50></input> <b>100</b>
-                <p class = "sample_label">50 samples</p>
-            </div>
-        </div>
-
-        <div id="drum_modal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal()">&times;</span>
-
-                <p>Set b value (probability that sample will stay positive, otherwise the sample is negated)  </p>
-                <b>0</b><input class = "slider" type = "range" min = '0' max = '100' id = 'drum_slider' value = 50></input> <b>1</b>
-                <p class = "drum_label">0.5</p>
-            </div>
-        </div>
-        
+        </template>
  
     </body>
 </html>
@@ -88,13 +93,9 @@
         noiseType: noiseTypes.WHITE
     };
 
-    
-
     var noiseType = defaults.noiseType;
 
     // canvas
-
-    var currModal = document.getElementById("filter_modal");
 
     var canvasContext = document.getElementById("canvas").getContext('2d');
     canvasContext.canvas.width = window.innerWidth ;
@@ -159,6 +160,35 @@
             text: options.subtext,
         });
         node.subtext = subtext;
+
+        if(options.modalType !== "none") {
+            var modalTemplate = document.getElementById(options.modalType);
+            var clone = modalTemplate.content.cloneNode(true);
+            
+            node.modal = clone.firstElementChild;
+
+            var slider = clone.querySelector('input');
+            console.log(slider)
+            if(options.modalType == "delay_modal") {
+                slider.onchange = () => change_duration(node);
+            }
+            else if(options.modalType == "filter_modal") {
+                slider.onchange = () => change_lowpass_cutoff(node);
+            }
+            else if(options.modalType == "drum_modal") {
+                slider.onchange = () => change_drum_constant(node);
+            } 
+            else if(options.modalType == "source_modal") {
+                slider.onchange = () => change_duration(node);
+                var selector = clone.querySelector('select');
+                selector.onchange = () => change_noise_type(node);
+            }
+            
+            var body = document.querySelector('body');
+            body.appendChild(clone);
+            
+        }
+        
         
         function openModal() {
             if(dragged) {
@@ -167,8 +197,7 @@
             else {
                 currNode = node; 
                 if(options.modalType !== "none") {
-                    currModal = document.getElementById(options.modalType);
-                    currModal.style.display = "block";
+                    node.modal.style.display = "block";
                 }
             }
         }
@@ -222,10 +251,7 @@
         canvas.redraw();
     }
 
-    
-
     // Audio init
-
     function generateNoise(buffer, noiseType) {
         switch(noiseType) {
             case noiseTypes.WHITE:
@@ -308,23 +334,24 @@
         // }
     });
 
-    const lowpass_slider = document.getElementById('lowpass_slider');
-    const delay_slider = document.getElementById('delay_slider');
-    const source_slider = document.getElementById('source_slider');
-    const noise_selector = document.getElementById('noise');
-    const drum_slider = document.getElementById('drum_slider');
+    // const lowpass_slider = document.getElementById('lowpass_slider');
+    // const delay_slider = document.getElementById('delay_slider');
+    // const source_slider = document.getElementById('source_slider');
+    // const noise_selector = document.getElementById('noise');
+    // const drum_slider = document.getElementById('drum_slider');
+    // source_slider.onchange = () => change_duration(source_slider);
+    // delay_slider.onchange = () => change_duration(delay_slider);
 
-    lowpass_slider.onchange = function() {
+    function change_lowpass_cutoff() {
         document.getElementById("lowpass_label").innerHTML = "Lowpass Cutoff: " + lowpass_slider.value;
         currNode.audioNode.frequency.setValueAtTime(lowpass_slider.value, audioCtx.currentTime);
         currNode.subtext.text = "cutoff frequency: " + lowpass_slider.value + " hz";
         canvas.redraw();
     }
-
-    source_slider.onchange = () => change_duration(source_slider);
-    delay_slider.onchange = () => change_duration(delay_slider);
     
-    function change_duration(slider) {
+    function change_duration(node) {
+        var slider = node.modal.getElementById('slider');
+
         var labels = document.getElementsByClassName("sample_label");
         for(var i = 0; i < labels.length; i++) {
             labels[i].innerHTML = slider.value + " samples";
@@ -348,31 +375,31 @@
         canvas.redraw();
     }
 
-    noise_selector.onchange = function() {
-    
+     function change_noise_type(node) {
+        var noise_selector = node.modal.getElementById('noise_selector');
         var key = Object.keys(noiseTypes).find(key => noiseTypes[key] === noise_selector.value);
         noiseType = noiseTypes[key];
-        currNode.subtext.text = "type: " + noiseType;
+        node.subtext.text = "type: " + noiseType;
         pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: source_slider.value, sampleRate: audioCtx.sampleRate});
         generateNoise(pluckBuffer.getChannelData(0), noiseType);
 
         canvas.redraw();
     }
 
-    drum_slider.onchange = function() {
+    function change_drum_constant(node) {
 
-        karplusNode.audioNode.b.setValueAtTime(drum_slider.value / 100, audioCtx.currentTime);
-        document.getElementById("drum_label").innerHTML = drum_slider.value / 100;
+        node.audioNode.b.setValueAtTime(slider.value / 100, audioCtx.currentTime);
+        node.modal.getElementById('drum_label').innerHTML = drum_slider.value / 100;
     }
 
     window.onclick = function(event) {
-        if (event.target == currModal) {
-            closeModal();
+        if (event.target == currNode.modal) {
+            closeModal(currNode.modal);
         }
     }
 
-    function closeModal() {
-        currModal.style.display = "none";
+    function closeModal(modal) {
+        modal.style.display = "none";
     }
 
 </script>
