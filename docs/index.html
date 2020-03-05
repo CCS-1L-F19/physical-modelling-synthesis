@@ -19,7 +19,7 @@
         <br>
         <div id = "buttons">
             <button id="start">Play</button>
-            <!--    <button id="stop">Stop</button> -->
+            <!-- <button id="stop">Stop</button> -->
         </div>
         <template id="filter_modal">
             <div id = "modal" class="modal">
@@ -36,9 +36,10 @@
             <div class="modal">
                 <div class="modal-content">
                     <span class="close" onclick="closeModal(currNode.modal)">&times;</span>
-                    <p>Set duration (samples)</p>
-                    <b>1</b><input class = "slider" type = "range" min = '1' max = '100' id = 'delay_slider' value = 50></input> <b>100</b>
-                    <!-- <input type = "number" class = ""></input> -->
+                    <b>Set duration (samples):</b> <input id = "duration_input" type = "number" class = ""></input>
+                    <br>
+                    <b>1</b><input id = "duration_slider" type = "range" min = '1' max = '500' id = 'delay_slider' value = 50></input> <b>100</b>
+                    
                     <p class = "sample_label">50 samples</p>
                 </div>
             </div>
@@ -53,9 +54,11 @@
                         <option value="white noise">White Noise</option>
                         <option value="constant">Constant signal</option>
                     </select>
-    
-                    <p>Set duration (samples)</p>
-                    <b>1</b><input class = "slider" type = "range" min = '1' max = '100' id = 'source_slider' value = 50></input> <b>100</b>
+                    <br>
+                    <br>
+                    <b>Set duration (samples):</b> <input id = "duration_input" type = "number" class = ""></input>
+                    <br>
+                    <b>1</b><input id = "duration_slider" type = "range" min = '1' max = '500' id = 'source_slider' value = 50></input> <b>100</b>
                     <p class = "sample_label">50 samples</p>
                 </div>
             </div>
@@ -66,9 +69,25 @@
                 <div class="modal-content">
                     <span class="close" onclick="closeModal(currNode.modal)">&times;</span>
     
+                </div>
+            </div>
+        </template>
+
+        <template id="chord_modal">
+            <div class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeModal(currNode.modal)">&times;</span>
                     <p>Set b value (probability that sample will stay positive, otherwise the sample is negated)  </p>
-                    <b>0</b><input class = "slider" type = "range" min = '0' max = '100' id = 'drum_slider' value = 50></input> <b>1</b>
-                    <p class = "drum_label">0.5</p>
+                    <b>0</b><input class = "slider" type = "range" min = '0' max = '100' id = 'drum_slider' value = 100></input> <b>1</b>
+                    <p id = "drum_label">1.0</p>
+
+                    <p>Set the loss factor  </p>
+                    <b>0</b><input class = "slider" type = "range" min = '0' max = '100' id = 'loss_slider' value = 100></input> <b>1</b>
+                    <p id = "loss_label">1.0</p>
+
+                    <p>Set the stretch factor  </p>
+                    <b>0</b><input class = "slider" type = "range" min = '0' max = '100' id = 'stretch_slider' value = 50></input> <b>1</b>
+                    <p id = "stretch_label">0.5</p>
                 </div>
             </div>
         </template>
@@ -136,7 +155,7 @@
         fill: "#fff"
     });
 
-    var audioNodes = {};
+    var nodes = [];
     var durationNodes = [];
     var currNode = null;
     var dragged = false;
@@ -165,34 +184,64 @@
         });
         node.subtext = subtext;
 
+
+        var clone;
+
         if(options.modalType !== "none") {
             var modalTemplate = document.getElementById(options.modalType);
-            var clone = modalTemplate.content.cloneNode(true);
+            clone = modalTemplate.content.cloneNode(true);
             
             node.modal = clone.firstElementChild;
 
-            var slider = clone.querySelector('input');
-            console.log(slider)
+
             if(options.modalType == "delay_modal") {
-                slider.onchange = () => change_duration(node);
+                var input = clone.getElementById("duration_input");
+                input.oninput = () => change_duration(input);
+                var slider = clone.getElementById("duration_slider");
+                slider.oninput = () => change_duration(slider);
             }
             else if(options.modalType == "filter_modal") {
-                slider.onchange = () => change_lowpass_cutoff(node);
+                var slider = document.getElementById("lowpass_slider");
+                var lab = clone.getElementById("lowpass_label");
+                slider.oninput = () => change_lowpass_cutoff(slider, lab);
             }
             else if(options.modalType == "drum_modal") {
-                slider.onchange = () => change_drum_constant(node);
+                var slider = document.getElementById("drum_slider");
+                var lab = clone.getElementById("drum_label");
+                slider.oninput = () => change_audio_param('b', slider, lab);
+                
+            } 
+            else if(options.modalType == "chord_modal") {
+
+                var drum_slider = clone.getElementById("drum_slider");
+                var drum_label = clone.getElementById("drum_label");
+                drum_slider.oninput = () => change_audio_param('b', drum_slider, drum_label);
+
+                var loss_slider = clone.getElementById("loss_slider");
+                var loss_label = clone.getElementById("loss_label");
+                loss_slider.oninput = () => change_audio_param('loss_factor', loss_slider, loss_label);
+
+                var stretch_slider = clone.getElementById("stretch_slider");
+                var stretch_label = clone.getElementById("stretch_label");
+                stretch_slider.oninput = () => change_audio_param('stretch_factor', stretch_slider, stretch_label);
             } 
             else if(options.modalType == "source_modal") {
-                slider.onchange = () => change_duration(node);
+
+                var input = clone.getElementById("duration_input");
+                input.oninput = () => change_duration(input);
+
+                var slider = clone.getElementById("duration_slider");
+                slider.oninput = () => change_duration(slider);
+
                 var selector = clone.querySelector('select');
-                selector.onchange = () => change_noise_type(node);
+                selector.onchange = () => change_noise_type(selector, slider);
             }
+            
             
             var body = document.querySelector('body');
             body.appendChild(clone);
             
         }
-        
         
         function openModal() {
             if(dragged) {
@@ -223,8 +272,8 @@
         return node;
     }
 
-    function connect(n1, n2) {
-        if(n1.audioNode.connect) {
+    function connectPair(n1, n2) {
+        if(n1.audioNode) {
             n1.audioNode.connect(n2.audioNode);
         }
 
@@ -245,7 +294,6 @@
     }
 
     function updateLineStart(node, line) {
-        // console.log(node.x);
         line.start = {x: node.x, y: node.y};
         canvas.redraw();
     }  
@@ -255,9 +303,23 @@
         canvas.redraw();
     }
 
+    
     // Audio init
-    function generateNoise(buffer, noiseType) {
+
+    var bufferLength = defaults.duration;
+
+    
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+    console.log("is secure: " + window.isSecureContext)
+
+    function generateBuffer(len, noiseType) {
+
+        var audioBuffer = new AudioBuffer({numberOfChannels: 1, length: len, sampleRate: audioCtx.sampleRate});
+        var buffer = audioBuffer.getChannelData(0);
         switch(noiseType) {
+            
             case noiseTypes.WHITE:
                 for(var i = 0; i < buffer.length; i++) {
                     buffer[i] = 2 * Math.round(Math.random()) - 1;
@@ -269,55 +331,64 @@
                 }
                 break;
         }
+        return audioBuffer;
     }
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    const audioCtx = new AudioContext();
-    console.log("is secure: " + window.isSecureContext)
     async function audioSetup() {
-        await audioCtx.audioWorklet.addModule('karplus-drum-processor.js');
+        await audioCtx.audioWorklet.addModule('karplus-chord-processor.js');
     }
-
     audioSetup().then(() => {
-        const karplus = new AudioWorkletNode(audioCtx, 'karplus-drum-processor');
-        var pluckSource;
-        var pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: defaults.duration, sampleRate: audioCtx.sampleRate});
-        generateNoise(pluckBuffer.getChannelData(0), defaults.noiseType);
+
+        var karplus = new AudioWorkletNode(audioCtx, 'karplus-chord-processor');
+        
         var delay = new DelayNode(audioCtx, {delayTime: defaults.duration / audioCtx.sampleRate});
-        var gain = new GainNode(audioCtx, {gain: 2 * defaults.gain});
+        // var gain = new GainNode(audioCtx, {gain: 2 * defaults.gain});
         var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: defaults.lowpass, Q: 0});
         var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
         var split = new ChannelSplitterNode(audioCtx, {numberOfOutputs: 2});
 
-        var sourceBufferNode = createNode({width: 200, x: 150, y: 50, labeltext: "Source (" + defaults.duration + " samples)", subtext: "type: " + defaults.noiseType, audioNode: pluckBuffer, modalType: "source_modal"});
+        var sourceBufferNode = createNode({width: 200, x: 150, y: 50, labeltext: "Source (" + defaults.duration + " samples)", subtext: "type: " + defaults.noiseType, audioNode: null, modalType: "source_modal"});
+        durationNodes.push(sourceBufferNode);
         var mergeNode = createNode({width: 100, x: 500, y: 50, labeltext: "Merge", subtext: "", audioNode: merge, modalType: "none"});
-        var gainNode = createNode({width: 100, x: 650, y: 150, labeltext: "Gain", subtext: "", audioNode: gain, modalType: "none"});
-        var delayNode = createNode({width: 200, x: 500, y: 300, labeltext: "Delay Node", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
+        var delayNode = createNode({width: 200, x: 500, y: 300, labeltext: "Delay", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
+        durationNodes.push(delayNode);
         // var filterNode = createNode({width: 200, x: 300, y: 150, labeltext: "Lowpass Filter", subtext: "cutoff frequency: " + defaults.lowpass + " hz", audioNode: filter, modalType: "filter_modal"});
-        var karplusNode = createNode({width: 200, x: 300, y: 150, labeltext: "Karplus Drum Algorithm", subtext: "", audioNode: karplus, modalType: "drum_modal"});
+        var karplusNode = createNode({width: 200, x: 300, y: 150, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "chord_modal"});
         var destNode = createNode({width: 150, x: 850, y: 50, labeltext: "Destination", subtext: "", audioNode: split, modalType: "none"});
 
-        durationNodes.push(sourceBufferNode);
-        durationNodes.push(delayNode);
+        nodes.push(sourceBufferNode, mergeNode, delayNode, karplusNode, destNode);
+        
 
-        connect(mergeNode, gainNode);
-        connect(gainNode, delayNode);
-        connect(delayNode, karplusNode);
-        connect(karplusNode, mergeNode);
-        // connect(delayNode, filterNode);
-        // connect(filterNode, mergeNode);
-        connect(mergeNode, destNode);
-        connect(sourceBufferNode, mergeNode);
+        connectPair(mergeNode, delayNode);
+        // connectPair(gainNode, delayNode);
+        connectPair(delayNode, karplusNode);
+        connectPair(karplusNode, mergeNode);
+        // connectPair(delayNode, filterNode);
+        // connectPair(filterNode, mergeNode);
+        connectPair(mergeNode, destNode);
+        connectPair(sourceBufferNode, mergeNode);
+   
+
         canvas.redraw();
     
         const startButton = document.getElementById("start");
     
-        startButton.onclick = function() {
+        
+        document.body.onkeyup = function(e){
+            if(e.keyCode == 32){
+                start();
+            }
+        }
+        startButton.onclick = start;
+        
+        function start() {
 
             audioCtx.resume();
-            pluckSource = new AudioBufferSourceNode(audioCtx, {buffer: pluckBuffer}); // creates a source to play the pluck buffer from 
-            pluckSource.connect(merge);        
+            var buffer = generateBuffer(bufferLength, noiseType);
+            var source = new AudioBufferSourceNode(audioCtx, {buffer: buffer}); // creates a source to play the pluck buffer from 
+            
+            source.connect(merge);        
             split.connect(audioCtx.destination);
-            pluckSource.start();
+            source.start();
 
             // setTimeout(() => {
             //     pluckSource.stop(); 
@@ -338,66 +409,58 @@
         // }
     });
 
-    // const lowpass_slider = document.getElementById('lowpass_slider');
-    // const delay_slider = document.getElementById('delay_slider');
-    // const source_slider = document.getElementById('source_slider');
-    // const noise_selector = document.getElementById('noise');
-    // const drum_slider = document.getElementById('drum_slider');
-    // source_slider.onchange = () => change_duration(source_slider);
-    // delay_slider.onchange = () => change_duration(delay_slider);
+    function connectNodes(nodes) {
 
-    function change_lowpass_cutoff() {
-        document.getElementById("lowpass_label").innerHTML = "Lowpass Cutoff: " + lowpass_slider.value;
-        currNode.audioNode.frequency.setValueAtTime(lowpass_slider.value, audioCtx.currentTime);
-        currNode.subtext.text = "cutoff frequency: " + lowpass_slider.value + " hz";
+    }
+
+    function change_lowpass_cutoff(slider, label) {
+        document.getElementById("lowpass_label").innerHTML = "Lowpass Cutoff: " + slider.value;
+        currNode.audioNode.frequency.setValueAtTime(slider.value, audioCtx.currentTime);
+        currNode.subtext.text = "cutoff frequency: " + slider.value + " hz";
         canvas.redraw();
     }
     
-    function change_duration(node) {
-        var slider = node.modal.getElementById('slider');
+    function change_duration(slider) {
 
         var labels = document.getElementsByClassName("sample_label");
         for(var i = 0; i < labels.length; i++) {
             labels[i].innerHTML = slider.value + " samples";
         }
-        var sliders = document.getElementsByClassName("slider");
+        var sliders = document.getElementsByClassName("duration_slider");
         for(var i = 0; i < sliders.length; i++) {
             sliders[i].value = slider.value;
         }
         for(var durationNode of durationNodes) {
-            if(durationNode.audioNode.delayTime) {
+            if(durationNode.audioNode) {
                 durationNode.audioNode.delayTime.setValueAtTime(slider.value / audioCtx.sampleRate, audioCtx.currentTime);
-                durationNode.subtext.text = "delay: " + delay_slider.value + " samples";
+                durationNode.subtext.text = "delay: " + slider.value + " samples";
             }
             else {
                 durationNode.label.text = "Source (" + slider.value + " samples)";
             }
         }
-        pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: slider.value, sampleRate: audioCtx.sampleRate});
-        generateNoise(pluckBuffer.getChannelData(0), noiseType);
+        bufferLength = slider.value;
 
         canvas.redraw();
     }
 
-     function change_noise_type(node) {
-        var noise_selector = node.modal.getElementById('noise_selector');
-        var key = Object.keys(noiseTypes).find(key => noiseTypes[key] === noise_selector.value);
+     function change_noise_type(selector, slider) {
+        
+        var key = Object.keys(noiseTypes).find(key => noiseTypes[key] === selector.value);
         noiseType = noiseTypes[key];
-        node.subtext.text = "type: " + noiseType;
-        pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: source_slider.value, sampleRate: audioCtx.sampleRate});
-        generateNoise(pluckBuffer.getChannelData(0), noiseType);
-
+        currNode.subtext.text = "type: " + noiseType;
+        pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: slider.value, sampleRate: audioCtx.sampleRate});
         canvas.redraw();
     }
 
-    function change_drum_constant(node) {
-
-        node.audioNode.b.setValueAtTime(slider.value / 100, audioCtx.currentTime);
-        node.modal.getElementById('drum_label').innerHTML = drum_slider.value / 100;
+    function change_audio_param(param, slider, label) {
+        const audioParam = currNode.audioNode.parameters.get(param);
+        audioParam.setValueAtTime(slider.value / 100, audioCtx.currentTime);
+        label.innerHTML = slider.value / 100;
     }
 
     window.onclick = function(event) {
-        if(currnode){
+        if(currNode){
             if (event.target == currNode.modal) {
                 closeModal(currNode.modal);
             }
