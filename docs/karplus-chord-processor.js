@@ -47,3 +47,20 @@ class KarplusChordProcessor extends AudioWorkletProcessor {
 }
   
 registerProcessor('karplus-chord-processor', KarplusChordProcessor)
+
+
+// for(let i = 0; i < input.length; i++) {
+//   if(Math.random() < (1 - 1/stretch)) {
+//     output[i] = 2 * input[i];
+//   }
+//   else {
+//     sign = -1;
+//     if(Math.random() < b) {
+//         sign = 1;
+//     }
+//     // output[i] = 2 * sign * loss * ((1 - stretch) * input[i] + stretch * this.prev);
+//     output[i] = sign * loss * (input[i] + this.prev);
+//   }
+//   this.prev = input[i];
+  
+// } 
