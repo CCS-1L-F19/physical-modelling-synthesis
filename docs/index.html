@@ -20,10 +20,15 @@
                     <h1 style = "text-align: center">Karplusplus - Physical Modelling Synthesis in the Browser</h1>
                 </tr>
                 <tr>
-                    <td class = "sidebar">
+                    <td id = "sidebar">
                         <button id="select">Select Nodes</button>  
                         <br>
                         <br>
+                        <table id = "selected_nodes" hidden = "true">
+                            <tr>
+                                <th>Selected Nodes</th>
+                            </tr>
+                        </table>
                         <br>
                         <br>
                         <button id="connect">Connect Selected</button>
@@ -95,7 +100,7 @@
                     <br>
                     <b>Set duration (samples):</b> <input id = "duration_input" type = "number" class = ""></input>
                     <br>
-                    <b>1</b><input id = "duration_slider" type = "range" min = '1' max = '500' id = 'source_slider' value = 50></input> <b>100</b>
+                    <b>1</b><input id = "duration_slider" type = "range" min = '1' max = '500' id = 'source_slider' value = 50></input> <b>500</b>
                     <p class = "sample_label">50 samples</p>
                 </div>
             </div>

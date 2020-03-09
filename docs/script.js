@@ -18,22 +18,21 @@ const defaults = {
     noiseType: noiseTypes.WHITE
 };
 
-var noiseType = defaults.noiseType;
-
 // canvas
 
 var canvasContext = document.getElementById("canvas").getContext('2d');
-canvasContext.canvas.width = window.innerWidth - 43;
-canvasContext.canvas.height = window.innerHeight * 0.8;
+canvasContext.canvas.width = window.innerWidth - document.getElementById("sidebar").width - 350;
+canvasContext.canvas.height = window.innerHeight * 0.7;
 
 var canvas = oCanvas.create({
     canvas: "#canvas",
 });
 
-// window.onresize = () => {
-//     canvasContext.canvas.width = window.innerWidth - 43;
-//     canvas.redraw();
-// }
+window.onresize = () => {
+    canvasContext.canvas.width = window.innerWidth - document.getElementById("sidebar").width - 350;
+    canvasContext.canvas.height = window.innerHeight * 0.7;
+    canvas.redraw();
+}
 
 var nodeProto = canvas.display.rectangle({
     origin: { x: "center", y: "center" },
@@ -63,6 +62,7 @@ var nodeSubtextProto = canvas.display.text({
 
 var nodes = [];
 var durationNodes = [];
+var sourceNodes = [];
 var selectedNodes = [];
 var currNode = null;
 var dragged = false;
@@ -79,6 +79,10 @@ function createNode(options) {
     node.startingLines = [];
     node.endingLines = [];
     node.audioNode = options.audioNode;
+    node.nextNode = null;
+    node.noiseType = options.noiseType;
+    node.duration = duration;
+    node.selected = false;
 
 
     var label = nodeLabelProto.clone({
@@ -92,15 +96,12 @@ function createNode(options) {
     });
     node.subtext = subtext;
 
-
     var clone;
-
     if(options.modalType !== "none") {
         var modalTemplate = document.getElementById(options.modalType);
         clone = modalTemplate.content.cloneNode(true);
         
         node.modal = clone.firstElementChild;
-
 
         if(options.modalType == "delay_modal") {
             var input = clone.getElementById("duration_input");
@@ -115,7 +116,6 @@ function createNode(options) {
         }
 
         else if(options.modalType == "chord_modal") {
-
             var drum_slider = clone.getElementById("drum_slider");
             var drum_label = clone.getElementById("drum_label");
             drum_slider.oninput = () => change_audio_param('b', drum_slider.value / 100, drum_label);
@@ -128,16 +128,17 @@ function createNode(options) {
             var stretch_label = clone.getElementById("stretch_label");
             stretch_slider.oninput = () => change_audio_param('stretch_factor', stretch_slider.value/100, stretch_label);
         } 
+
         else if(options.modalType == "source_modal") {
 
             var input = clone.getElementById("duration_input");
             input.oninput = () => change_duration(input);
 
             var slider = clone.getElementById("duration_slider");
-            slider.oninput = () => change_duration(slider);
+            slider.oninput = () => change_duration(node, slider);
 
             var selector = clone.querySelector('select');
-            selector.onchange = () => change_noise_type(selector, slider);
+            selector.onchange = () => change_noise_type(node, selector, slider);
         }
         
         var body = document.querySelector('body');
@@ -145,7 +146,7 @@ function createNode(options) {
         
     }
     
-    function openModal() {
+    function onNodeClick() {
         if(!selecting) {
             if(dragged) {
                 dragged = false;
@@ -156,6 +157,19 @@ function createNode(options) {
                     node.modal.style.display = "block";
                 }
             }
+        }
+        else {
+            if(node.selected) {
+                node.selected = false;
+                selectedNodes.splice(selectedNodes.findIndex((n) => n == node), 1);
+            }
+            else {
+                if(selectedNodes.length <= 2) {
+                    node.selected = true;
+                    selectedNodes.push(node);
+                }   
+            }
+            updateSelectedTable(selectedNodes);
         }
     }
 
@@ -168,7 +182,7 @@ function createNode(options) {
         }
     }
 
-    node.bind("click tap", openModal);
+    node.bind("click tap", onNodeClick);
     node.dragAndDrop({ changeZindex: true, move: function(){dragged = true; whileDragging();}});
     node.addChild(label);
     node.addChild(subtext);
@@ -177,6 +191,7 @@ function createNode(options) {
 }
 
 function connectPair(n1, n2) {
+    n1.nextNode = n2;
     if(n1.audioNode) {
         n1.audioNode.connect(n2.audioNode);
     }
@@ -184,6 +199,7 @@ function connectPair(n1, n2) {
     var line = drawLineBetween(n1, n2);
     n1.startingLines.push(line);
     n2.endingLines.push(line);
+    canvas.redraw();
 }
 
 function drawLineBetween(n1, n2) {
@@ -210,9 +226,7 @@ function updateLineEnd(node, line) {
 
 // Audio init
 
-var bufferLength = defaults.duration;
-
-
+// var bufferLength = defaults.duration;
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
@@ -250,7 +264,8 @@ audioSetup().then(() => {
     var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
     var split = new ChannelSplitterNode(audioCtx, {numberOfOutputs: 2});
 
-    var sourceBufferNode = createNode({width: 200, x: 150, y: 50, labeltext: "Source (" + defaults.duration + " samples)", subtext: "type: " + defaults.noiseType, audioNode: null, modalType: "source_modal"});
+    var sourceBufferNode = createNode({width: 200, x: 150, y: 50, labeltext: "Source (" + defaults.duration + " samples)", subtext: "type: " + defaults.noiseType, audioNode: null, modalType: "source_modal", noiseType: defaults.noiseType, duration: defaults.duration});
+    sourceNodes.push(sourceBufferNode);
     durationNodes.push(sourceBufferNode);
     var mergeNode = createNode({width: 100, x: 500, y: 50, labeltext: "Merge", subtext: "", audioNode: merge, modalType: "none"});
     var delayNode = createNode({width: 200, x: 500, y: 300, labeltext: "Delay", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
@@ -263,11 +278,8 @@ audioSetup().then(() => {
     
 
     connectPair(mergeNode, delayNode);
-    // connectPair(gainNode, delayNode);
     connectPair(delayNode, karplusNode);
     connectPair(karplusNode, mergeNode);
-    // connectPair(delayNode, filterNode);
-    // connectPair(filterNode, mergeNode);
     connectPair(mergeNode, destNode);
     connectPair(sourceBufferNode, mergeNode);
 
@@ -287,11 +299,14 @@ audioSetup().then(() => {
     function start() {
 
         audioCtx.resume();
-        var buffer = generateBuffer(bufferLength, noiseType);
+        for(var sourceNode of sourceNodes) {
+            var buffer = generateBuffer(bufferLength, noiseType);
+        }
+        
         var source = new AudioBufferSourceNode(audioCtx, {buffer: buffer}); // creates a source to play the pluck buffer from 
         
         source.connect(merge);        
-        split.connect(audioCtx.destination);
+        destNode.audioNode.connect(audioCtx.destination);
         source.start();
 
         // setTimeout(() => {
@@ -313,10 +328,6 @@ audioSetup().then(() => {
     // }
 });
 
-function connectNodes(nodes) {
-
-}
-
 function change_lowpass_cutoff(slider, label) {
     document.getElementById("lowpass_label").innerHTML = "Lowpass Cutoff: " + slider.value;
     currNode.audioNode.frequency.setValueAtTime(slider.value, audioCtx.currentTime);
@@ -334,6 +345,7 @@ function change_duration(slider) {
     for(var i = 0; i < sliders.length; i++) {
         sliders[i].value = slider.value;
     }
+
     for(var durationNode of durationNodes) {
         if(durationNode.audioNode) {
             durationNode.audioNode.delayTime.setValueAtTime(slider.value / audioCtx.sampleRate, audioCtx.currentTime);
@@ -344,16 +356,14 @@ function change_duration(slider) {
         }
     }
     bufferLength = slider.value;
-
     canvas.redraw();
 }
 
- function change_noise_type(selector, slider) {
+ function change_noise_type(node, selector, slider) {
     
     var key = Object.keys(noiseTypes).find(key => noiseTypes[key] === selector.value);
-    noiseType = noiseTypes[key];
+    node.noiseType = noiseTypes[key];
     currNode.subtext.text = "type: " + noiseType;
-    pluckBuffer = new AudioBuffer({numberOfChannels: 1, length: slider.value, sampleRate: audioCtx.sampleRate});
     canvas.redraw();
 }
 
@@ -381,13 +391,16 @@ addNode.onclick = function() {
             durationNodes.push(n);
             break;
         case nodeTypes.DELAY:
-            createNode({width: 200, x: 100, y: 100, labeltext: "Delay", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
+            var delay = new DelayNode(audioCtx, {delayTime: defaults.duration / audioCtx.sampleRate});
+            var n = createNode({width: 200, x: 100, y: 100, labeltext: "Delay", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
             durationNodes.push(n);
             break;
         case nodeTypes.LOWPASS_FILTER:
+
             createNode({width: 200, x: 100, y: 100, labeltext: "Lowpass Filter", subtext: "cutoff frequency: " + defaults.lowpass + " hz", audioNode: filter, modalType: "filter_modal"});
             break;
         case nodeTypes.KARPLUS:
+            var karplus = new AudioWorkletNode(audioCtx, 'karplus-chord-processor');
             createNode({width: 200, x: 100, y: 100, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "chord_modal"});
             break;
     }
@@ -399,9 +412,56 @@ function closeModal(modal) {
     modal.style.display = "none";
 }
 
+var connectNodes = document.getElementById("connect");
+connectNodes.onclick = function() {
+    if(selectedNodes.length == 2) {
+        connectPair(selectedNodes[0], selectedNodes[1]);
+    }
+}
+
+var disconnectNodes = document.getElementById("disconnect");
+disconnectNodes.onclick = function() {
+    if(selectedNodes.length == 2) {
+        for(var startingLine of selectedNodes[0].startingLines) {
+            for(var endingLine of selectedNodes[1].endingLines) {
+                if(startingLine === endingLine) {
+                    canvas.removeChild(startingLine);
+                    break;
+                }
+            }
+        }
+        selectedNodes[0].audioNode.disconnect(selectedNodes[1].audioNode);
+    }
+}
+
 $(document).ready(function(){
     $('button#select').click(function(){
-        selecting = !selecting;
+        if(selecting) {
+            selecting = false;
+            for(var node of selectedNodes) {
+                node.selected = false;
+            }
+            selectedNodes = [];
+        }
+        else {
+            selecting = true;
+        }
+        updateSelectedTable(selectedNodes);
         $(this).toggleClass("down");
     });
 });
+
+function updateSelectedTable(selectedNodes) {
+    var selectedTable = document.getElementById("selected_nodes");
+    if(selectedNodes.length == 0) {
+        selectedTable.hidden = true;
+    }
+    else {
+        selectedTable.hidden = false;
+        selectedTable.innerHTML = "<tr><th>Selected Nodes</th></tr>"
+        for(var n of selectedNodes) {
+            selectedTable.innerHTML += "<tr><td class = \"node_row\">" + n.label.text + "</td></tr>";
+            console.log(selectedTable);
+        }   
+    }
+}
