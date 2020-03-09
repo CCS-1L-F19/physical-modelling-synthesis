@@ -105,7 +105,6 @@ function createNode(options) {
 
         if(options.modalType == "delay_modal") {
             var duration_label = clone.getElementById("duration_label");
-            console.log("duration_label:" + duration_label)
             var input = clone.getElementById("duration_input");
             input.oninput = () => change_duration(node, input, duration_label);
 
@@ -262,8 +261,6 @@ audioSetup().then(() => {
     var karplus = new AudioWorkletNode(audioCtx, 'karplus-chord-processor');
     
     var delay = new DelayNode(audioCtx, {delayTime: defaults.duration / audioCtx.sampleRate});
-    // var gain = new GainNode(audioCtx, {gain: 2 * defaults.gain});
-    var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: defaults.lowpass, Q: 0});
     var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
     var split = new ChannelSplitterNode(audioCtx, {numberOfOutputs: 2});
 
@@ -273,7 +270,6 @@ audioSetup().then(() => {
     var mergeNode = createNode({width: 100, x: 500, y: 50, labeltext: "Merge", subtext: "", audioNode: merge, modalType: "none"});
     var delayNode = createNode({width: 200, x: 500, y: 300, labeltext: "Delay", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
     durationNodes.push(delayNode);
-    // var filterNode = createNode({width: 200, x: 300, y: 150, labeltext: "Lowpass Filter", subtext: "cutoff frequency: " + defaults.lowpass + " hz", audioNode: filter, modalType: "filter_modal"});
     var karplusNode = createNode({width: 200, x: 300, y: 150, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "karplus_modal"});
     var destNode = createNode({width: 150, x: 850, y: 50, labeltext: "Destination", subtext: "", audioNode: split, modalType: "none"});
 
@@ -339,25 +335,7 @@ function change_lowpass_cutoff(slider, label) {
 
 function change_duration(node, slider, label) {
 
-    // var labels = document.getElementsByClassName("sample_label");
-    // for(var i = 0; i < labels.length; i++) {
-    //     labels[i].innerHTML = slider.value + " samples";
-    // }
-    // var sliders = document.getElementsByClassName("duration_slider");
-    // for(var i = 0; i < sliders.length; i++) {
-    //     sliders[i].value = slider.value;
-    // }
     label.innerHTML = slider.value + " samples";
-
-    // for(var durationNode of durationNodes) {
-    //     if(durationNode.audioNode) {
-    //         durationNode.audioNode.delayTime.setValueAtTime(slider.value / audioCtx.sampleRate, audioCtx.currentTime);
-    //         durationNode.subtext.text = "delay: " + slider.value + " samples";
-    //     }
-    //     else {
-    //         durationNode.label.text = "Source (" + slider.value + " samples)";
-    //     }
-    // }
 
     if(node.audioNode) {
         node.audioNode.delayTime.setValueAtTime(slider.value / audioCtx.sampleRate, audioCtx.currentTime);
@@ -384,7 +362,7 @@ function change_audio_param(param, value, label) {
     label.innerHTML = value;
 }
 
-window.onclick = function(event) {
+window.onclick = (event) => {
     if(currNode){
         if (event.target == currNode.modal) {
             closeModal(currNode.modal);
@@ -394,36 +372,71 @@ window.onclick = function(event) {
 
 var addNode = document.getElementById("add_node");
 var nodeSelector = document.getElementById("node_selector");
-addNode.onclick = function() {
+addNode.onclick = () => {
     var nodeType = nodeTypes[Object.keys(nodeTypes).find(key => nodeTypes[key] === nodeSelector.value)];
+    var n;
     switch(nodeType) {
         case nodeTypes.SOURCE:
-            var n = createNode({width: 200, x: 150, y: 50, labeltext: "Source (" + defaults.duration + " samples)", subtext: "type: " + defaults.noiseType, audioNode: null, modalType: "source_modal", noiseType: defaults.noiseType, duration: defaults.duration});
+            n = createNode({width: 200, x: 150, y: 50, labeltext: "Source (" + defaults.duration + " samples)", subtext: "type: " + defaults.noiseType, audioNode: null, modalType: "source_modal", noiseType: defaults.noiseType, duration: defaults.duration});
             sourceNodes.push(n);
             durationNodes.push(n);
+            
             break;
         case nodeTypes.DELAY:
             var delay = new DelayNode(audioCtx, {delayTime: defaults.duration / audioCtx.sampleRate});
-            var n = createNode({width: 200, x: 100, y: 100, labeltext: "Delay", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
+            n = createNode({width: 200, x: 100, y: 100, labeltext: "Delay", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
             durationNodes.push(n);
             break;
         case nodeTypes.LOWPASS_FILTER:
-
-            createNode({width: 200, x: 100, y: 100, labeltext: "Lowpass Filter", subtext: "cutoff frequency: " + defaults.lowpass + " hz", audioNode: filter, modalType: "filter_modal"});
+            var filter = new BiquadFilterNode(audioCtx, {type: 'lowpass', frequency: defaults.lowpass, Q: 0});
+            n = createNode({width: 200, x: 100, y: 100, labeltext: "Lowpass Filter", subtext: "cutoff frequency: " + defaults.lowpass + " hz", audioNode: filter, modalType: "filter_modal"});
             break;
         case nodeTypes.KARPLUS:
             var karplus = new AudioWorkletNode(audioCtx, 'karplus-chord-processor');
-            createNode({width: 200, x: 100, y: 100, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "karplus_modal"});
+            n = createNode({width: 200, x: 100, y: 100, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "karplus_modal"});
             break;
         case nodeTypes.MERGE:
             var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
-            createNode({width: 200, x: 100, y: 50, labeltext: "Merge", subtext: "", audioNode: merge, modalType: "none"});
-            break;
-        
+            n = createNode({width: 200, x: 100, y: 50, labeltext: "Merge", subtext: "", audioNode: merge, modalType: "none"});
+            break;  
     }
+
+    nodes.push(n);
 
     canvas.redraw();
 }
+
+var deleteNode = document.getElementById("delete_node");
+deleteNode.onclick = () => {
+    for(var node of selectedNodes) {
+        for(var line of node.startingLines) {
+            canvas.removeChild(line);
+        }
+        for(var line of node.endingLines) {
+            canvas.removeChild(line);
+        }
+        canvas.removeChild(node);
+        canvas.redraw();
+
+        if(node.audioNode) {
+            node.audioNode.disconnect();
+            // for(var n of nodes) {
+            //     if(n.audioNode) {
+            //         n.audioNode.disconnect(node);
+            //     }
+            // }
+        }
+        nodes.splice(nodes.findIndex((n) => n == node), 1);
+        selectedNodes.splice(selectedNodes.findIndex((n) => n == node), 1);
+        if(sourceNodes.includes(node)) {
+            sourceNodes.splice(sourceNodes.findIndex((n) => n == node), 1);
+        }
+        if(durationNodes.includes(node)) {
+            durationNodes.splice(durationNodes.findIndex((n) => n == node), 1);
+        }
+    }
+}
+
 
 function closeModal(modal) {
     modal.style.display = "none";
