@@ -107,6 +107,12 @@ button {
   width: 200px;
 }
 
+#delete_node {
+  background-color:#3b63d1d8;
+  margin: 0 auto;
+  width: 200px;
+}
+
 #connect {
   background-color:#88000096;
   margin: 0 auto;

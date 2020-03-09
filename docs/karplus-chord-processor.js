@@ -3,7 +3,7 @@ class KarplusChordProcessor extends AudioWorkletProcessor {
     static get parameterDescriptors () {
         return [{
           name: 'loss_factor',
-          defaultValue: 1,
+          defaultValue: .99,
           minValue: 0,
           maxValue: 1,
           automationRate: 'a-rate'
