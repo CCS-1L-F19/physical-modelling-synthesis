@@ -81,7 +81,7 @@ function createNode(options) {
     node.audioNode = options.audioNode;
     node.nextNode = null;
     node.noiseType = options.noiseType;
-    node.duration = duration;
+    node.duration = options.duration;
     node.selected = false;
 
 
@@ -104,10 +104,13 @@ function createNode(options) {
         node.modal = clone.firstElementChild;
 
         if(options.modalType == "delay_modal") {
+            var duration_label = clone.getElementById("duration_label");
+            console.log("duration_label:" + duration_label)
             var input = clone.getElementById("duration_input");
-            input.oninput = () => change_duration(input);
+            input.oninput = () => change_duration(node, input, duration_label);
+
             var slider = clone.getElementById("duration_slider");
-            slider.oninput = () => change_duration(slider);
+            slider.oninput = () => change_duration(node, slider, duration_label);
         }
         else if(options.modalType == "filter_modal") {
             var slider = document.getElementById("lowpass_slider");
@@ -115,7 +118,7 @@ function createNode(options) {
             slider.oninput = () => change_lowpass_cutoff(slider, lab);
         }
 
-        else if(options.modalType == "chord_modal") {
+        else if(options.modalType == "karplus_modal") {
             var drum_slider = clone.getElementById("drum_slider");
             var drum_label = clone.getElementById("drum_label");
             drum_slider.oninput = () => change_audio_param('b', drum_slider.value / 100, drum_label);
@@ -130,15 +133,16 @@ function createNode(options) {
         } 
 
         else if(options.modalType == "source_modal") {
+            var duration_label = clone.getElementById("duration_label");
 
             var input = clone.getElementById("duration_input");
-            input.oninput = () => change_duration(input);
+            input.oninput = () => change_duration(node, input, duration_label);
 
             var slider = clone.getElementById("duration_slider");
-            slider.oninput = () => change_duration(node, slider);
+            slider.oninput = () => change_duration(node, slider, duration_label);
 
             var selector = clone.querySelector('select');
-            selector.onchange = () => change_noise_type(node, selector, slider);
+            selector.onchange = () => change_noise_type(node, selector);
         }
         
         var body = document.querySelector('body');
@@ -226,7 +230,6 @@ function updateLineEnd(node, line) {
 
 // Audio init
 
-// var bufferLength = defaults.duration;
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
@@ -271,12 +274,11 @@ audioSetup().then(() => {
     var delayNode = createNode({width: 200, x: 500, y: 300, labeltext: "Delay", subtext: "Delay: " + defaults.duration + " samples", audioNode: delay, modalType: "delay_modal"});
     durationNodes.push(delayNode);
     // var filterNode = createNode({width: 200, x: 300, y: 150, labeltext: "Lowpass Filter", subtext: "cutoff frequency: " + defaults.lowpass + " hz", audioNode: filter, modalType: "filter_modal"});
-    var karplusNode = createNode({width: 200, x: 300, y: 150, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "chord_modal"});
+    var karplusNode = createNode({width: 200, x: 300, y: 150, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "karplus_modal"});
     var destNode = createNode({width: 150, x: 850, y: 50, labeltext: "Destination", subtext: "", audioNode: split, modalType: "none"});
 
     nodes.push(sourceBufferNode, mergeNode, delayNode, karplusNode, destNode);
     
-
     connectPair(mergeNode, delayNode);
     connectPair(delayNode, karplusNode);
     connectPair(karplusNode, mergeNode);
@@ -298,17 +300,17 @@ audioSetup().then(() => {
     
     function start() {
 
+        destNode.audioNode.connect(audioCtx.destination);
         audioCtx.resume();
         for(var sourceNode of sourceNodes) {
-            var buffer = generateBuffer(bufferLength, noiseType);
+            if(sourceNode.nextNode) {
+                var buffer = generateBuffer(sourceNode.duration, sourceNode.noiseType);
+                var source = new AudioBufferSourceNode(audioCtx, {buffer: buffer}); 
+                source.connect(sourceNode.nextNode.audioNode);
+                source.start();
+            }
         }
         
-        var source = new AudioBufferSourceNode(audioCtx, {buffer: buffer}); // creates a source to play the pluck buffer from 
-        
-        source.connect(merge);        
-        destNode.audioNode.connect(audioCtx.destination);
-        source.start();
-
         // setTimeout(() => {
         //     pluckSource.stop(); 
         //     },
@@ -335,35 +337,44 @@ function change_lowpass_cutoff(slider, label) {
     canvas.redraw();
 }
 
-function change_duration(slider) {
+function change_duration(node, slider, label) {
 
-    var labels = document.getElementsByClassName("sample_label");
-    for(var i = 0; i < labels.length; i++) {
-        labels[i].innerHTML = slider.value + " samples";
-    }
-    var sliders = document.getElementsByClassName("duration_slider");
-    for(var i = 0; i < sliders.length; i++) {
-        sliders[i].value = slider.value;
-    }
+    // var labels = document.getElementsByClassName("sample_label");
+    // for(var i = 0; i < labels.length; i++) {
+    //     labels[i].innerHTML = slider.value + " samples";
+    // }
+    // var sliders = document.getElementsByClassName("duration_slider");
+    // for(var i = 0; i < sliders.length; i++) {
+    //     sliders[i].value = slider.value;
+    // }
+    label.innerHTML = slider.value + " samples";
 
-    for(var durationNode of durationNodes) {
-        if(durationNode.audioNode) {
-            durationNode.audioNode.delayTime.setValueAtTime(slider.value / audioCtx.sampleRate, audioCtx.currentTime);
-            durationNode.subtext.text = "delay: " + slider.value + " samples";
-        }
-        else {
-            durationNode.label.text = "Source (" + slider.value + " samples)";
-        }
+    // for(var durationNode of durationNodes) {
+    //     if(durationNode.audioNode) {
+    //         durationNode.audioNode.delayTime.setValueAtTime(slider.value / audioCtx.sampleRate, audioCtx.currentTime);
+    //         durationNode.subtext.text = "delay: " + slider.value + " samples";
+    //     }
+    //     else {
+    //         durationNode.label.text = "Source (" + slider.value + " samples)";
+    //     }
+    // }
+
+    if(node.audioNode) {
+        node.audioNode.delayTime.setValueAtTime(slider.value / audioCtx.sampleRate, audioCtx.currentTime);
+        node.subtext.text = "delay: " + slider.value + " samples";
     }
-    bufferLength = slider.value;
+    else {
+        node.label.text = "Source (" + slider.value + " samples)";
+    }
+    node.duration = slider.value;
     canvas.redraw();
 }
 
- function change_noise_type(node, selector, slider) {
+ function change_noise_type(node, selector) {
     
     var key = Object.keys(noiseTypes).find(key => noiseTypes[key] === selector.value);
     node.noiseType = noiseTypes[key];
-    currNode.subtext.text = "type: " + noiseType;
+    currNode.subtext.text = "type: " + node.noiseType;
     canvas.redraw();
 }
 
@@ -387,7 +398,8 @@ addNode.onclick = function() {
     var nodeType = nodeTypes[Object.keys(nodeTypes).find(key => nodeTypes[key] === nodeSelector.value)];
     switch(nodeType) {
         case nodeTypes.SOURCE:
-            var n = createNode({width: 200, x: 100, y: 100, labeltext: "Source (" + defaults.duration + " samples)", subtext: "type: " + defaults.noiseType, audioNode: null, modalType: "source_modal"});
+            var n = createNode({width: 200, x: 150, y: 50, labeltext: "Source (" + defaults.duration + " samples)", subtext: "type: " + defaults.noiseType, audioNode: null, modalType: "source_modal", noiseType: defaults.noiseType, duration: defaults.duration});
+            sourceNodes.push(n);
             durationNodes.push(n);
             break;
         case nodeTypes.DELAY:
@@ -401,8 +413,13 @@ addNode.onclick = function() {
             break;
         case nodeTypes.KARPLUS:
             var karplus = new AudioWorkletNode(audioCtx, 'karplus-chord-processor');
-            createNode({width: 200, x: 100, y: 100, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "chord_modal"});
+            createNode({width: 200, x: 100, y: 100, labeltext: "Karplus-Strong Filter", subtext: "", audioNode: karplus, modalType: "karplus_modal"});
             break;
+        case nodeTypes.MERGE:
+            var merge = new ChannelMergerNode(audioCtx, {numberOfInputs: 2});
+            createNode({width: 200, x: 100, y: 50, labeltext: "Merge", subtext: "", audioNode: merge, modalType: "none"});
+            break;
+        
     }
 
     canvas.redraw();
@@ -430,7 +447,13 @@ disconnectNodes.onclick = function() {
                 }
             }
         }
-        selectedNodes[0].audioNode.disconnect(selectedNodes[1].audioNode);
+        if(selectedNodes[0].audioNode) {
+            selectedNodes[0].audioNode.disconnect(selectedNodes[1].audioNode);
+        }
+        else{
+            selectedNodes[0].nextNode = null;
+        }
+        
     }
 }
 
@@ -461,7 +484,6 @@ function updateSelectedTable(selectedNodes) {
         selectedTable.innerHTML = "<tr><th>Selected Nodes</th></tr>"
         for(var n of selectedNodes) {
             selectedTable.innerHTML += "<tr><td class = \"node_row\">" + n.label.text + "</td></tr>";
-            console.log(selectedTable);
         }   
     }
 }
